@@ -5,13 +5,13 @@
 
 /**
  * OAuth スコープの設定
- * @OnlyCurrentDoc
  */
 
 // 必要な権限を明示的に要求
 // @scope https://www.googleapis.com/auth/script.scriptapp
 // @scope https://www.googleapis.com/auth/spreadsheets
 // @scope https://www.googleapis.com/auth/gmail.send
+// @scope https://www.googleapis.com/auth/drive
 // @scope https://www.googleapis.com/auth/drive.file
 
 // 設定: 管理者のメールアドレス（ここを変更してください）
@@ -1545,6 +1545,41 @@ function testReviewScreenshotSave() {
       success: false,
       error: error.toString(),
       message: 'テスト実行中にエラーが発生しました'
+    };
+  }
+}
+
+/**
+ * 権限を強制的にチェック・要求する関数
+ * この関数を実行することで権限認証ダイアログを表示
+ */
+function requestDrivePermissions() {
+  try {
+    console.log('=== Drive権限要求開始 ===');
+    
+    // Drive権限を要求するためのダミー呼び出し
+    const folders = DriveApp.getFolders();
+    console.log('✅ Drive権限が正常に取得されています');
+    
+    // テスト用フォルダ作成（権限確認のため）
+    const testFolder = DriveApp.createFolder('権限テスト_' + Date.now());
+    console.log('✅ フォルダ作成権限が正常に動作しています');
+    
+    // テストフォルダを削除
+    DriveApp.removeFile(testFolder);
+    console.log('✅ 権限テスト完了（テストフォルダ削除済み）');
+    
+    return {
+      success: true,
+      message: 'Google Drive権限が正常に設定されています'
+    };
+    
+  } catch (error) {
+    console.error('❌ Drive権限エラー:', error);
+    return {
+      success: false,
+      error: error.toString(),
+      message: '権限認証が必要です。この関数を再実行して権限を承認してください。'
     };
   }
 }
