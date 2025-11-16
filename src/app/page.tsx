@@ -236,7 +236,7 @@ export default function BentoReservationForm() {
   };
 
   const containerStyle = {
-    maxWidth: '700px',
+    maxWidth: '900px',
     margin: '0 auto',
     backgroundColor: 'white',
     padding: '40px',
