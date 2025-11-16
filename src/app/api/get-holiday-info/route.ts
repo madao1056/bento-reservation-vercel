@@ -5,17 +5,26 @@ const GAS_WEBAPP_URL = process.env.GAS_WEBAPP_URL || '';
 
 export async function GET(req: NextRequest) {
   try {
+    console.log('=== 定休日API呼び出し開始 ===');
+    console.log('GAS_WEBAPP_URL:', GAS_WEBAPP_URL ? '設定済み' : '未設定');
+    
     if (!GAS_WEBAPP_URL) {
+      console.error('GAS_WEBAPP_URL環境変数が設定されていません');
       return NextResponse.json(
         { 
           success: false, 
-          error: 'GAS_WEBAPP_URL環境変数が設定されていません' 
+          error: 'GAS_WEBAPP_URL環境変数が設定されていません',
+          debug: {
+            hasGasUrl: !!GAS_WEBAPP_URL,
+            env: process.env.NODE_ENV
+          }
         },
         { status: 500 }
       );
     }
 
-    console.log('定休日情報を取得中...');
+    const gasUrl = `${GAS_WEBAPP_URL}?action=getHolidayInfo`;
+    console.log('リクエスト先URL:', gasUrl);
 
     // GAS WebアプリにGETリクエストを送信（定休日情報取得）
     const gasResponse = await fetch(`${GAS_WEBAPP_URL}?action=getHolidayInfo`, {

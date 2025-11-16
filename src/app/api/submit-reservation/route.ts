@@ -19,6 +19,9 @@ interface RequestBody {
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('=== 予約API呼び出し開始 ===');
+    console.log('GAS_WEBAPP_URL:', GAS_WEBAPP_URL ? '設定済み' : '未設定');
+    
     const body: RequestBody = await req.json();
     
     // バリデーション
@@ -81,6 +84,20 @@ export async function POST(req: NextRequest) {
     };
     
     console.log('GASに送信するデータ:', JSON.stringify(gasData, null, 2));
+    
+    if (!GAS_WEBAPP_URL) {
+      console.error('GAS_WEBAPP_URL環境変数が設定されていません');
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'システム設定エラー: GAS_WEBAPP_URLが設定されていません',
+          details: 'ENV_MISSING'
+        },
+        { status: 500 }
+      );
+    }
+    
+    console.log('GAS URL:', GAS_WEBAPP_URL);
     
     // GAS WebアプリにPOSTリクエスト送信
     const gasResponse = await fetch(GAS_WEBAPP_URL, {
