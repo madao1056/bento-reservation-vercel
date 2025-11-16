@@ -99,6 +99,13 @@ function doPost(e) {
     // お礼メールのスケジュール設定
     scheduleThankYouEmail(requestData);
     
+    // デバッグ情報をスプレッドシートに記録
+    try {
+      logDebugInfo(requestData, saveResult);
+    } catch (debugError) {
+      console.error('デバッグログ記録エラー:', debugError);
+    }
+    
     // 成功レスポンス
     const response = {
       success: true,
@@ -1794,5 +1801,75 @@ function sendTestThankYouTo(testEmail) {
       error: error.toString(),
       message: 'テスト送信中にエラーが発生しました'
     };
+  }
+}
+
+/**
+ * デバッグ情報をスプレッドシートに記録（Webアプリのログ確認用）
+ */
+function logDebugInfo(requestData, saveResult) {
+  try {
+    const spreadsheet = getOrCreateSpreadsheet();
+    let debugSheet = spreadsheet.getSheetByName('デバッグログ');
+    
+    if (!debugSheet) {
+      debugSheet = spreadsheet.insertSheet('デバッグログ');
+      
+      // ヘッダー行を設定
+      const headers = [
+        '実行日時', '処理段階', 'メールアドレス', 'レビューSS情報', 
+        '保存結果', 'エラー詳細', 'データサイズ'
+      ];
+      debugSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      
+      // ヘッダーのスタイル設定
+      const headerRange = debugSheet.getRange(1, 1, 1, headers.length);
+      headerRange.setBackground('#4285f4');
+      headerRange.setFontColor('white');
+      headerRange.setFontWeight('bold');
+    }
+    
+    // レビューSS情報を整理
+    let reviewInfo = 'なし';
+    let dataSize = 0;
+    let saveStatus = 'なし';
+    let errorDetail = '';
+    
+    if (requestData.reviewScreenshot) {
+      reviewInfo = `名前: ${requestData.reviewScreenshot.name}, タイプ: ${requestData.reviewScreenshot.mimeType}`;
+      dataSize = requestData.reviewScreenshot.data ? requestData.reviewScreenshot.data.length : 0;
+      
+      // レビューSS保存を実際に試行
+      try {
+        const saveUrl = saveReviewScreenshot(requestData.reviewScreenshot, requestData.email);
+        if (saveUrl && !saveUrl.includes('エラー')) {
+          saveStatus = '成功: ' + saveUrl.substring(0, 50) + '...';
+        } else {
+          saveStatus = 'エラー';
+          errorDetail = saveUrl;
+        }
+      } catch (saveError) {
+        saveStatus = '例外エラー';
+        errorDetail = saveError.toString();
+      }
+    }
+    
+    // ログデータを追加
+    const logData = [
+      new Date(),
+      'レビューSS処理',
+      requestData.email,
+      reviewInfo,
+      saveStatus,
+      errorDetail,
+      dataSize
+    ];
+    
+    debugSheet.appendRow(logData);
+    
+    console.log('デバッグ情報をスプレッドシートに記録完了');
+    
+  } catch (error) {
+    console.error('デバッグログ記録失敗:', error);
   }
 }
