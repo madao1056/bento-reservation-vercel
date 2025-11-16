@@ -63,6 +63,13 @@ function doPost(e) {
       return createErrorResponse('不正なJSONデータです', 400);
     }
     
+    // 即座にデバッグ情報をスプレッドシートに記録
+    try {
+      logIncomingRequest(requestData);
+    } catch (logError) {
+      console.error('受信ログ記録失敗:', logError);
+    }
+    
     console.log('解析済みデータ:', {
       name: requestData.name,
       email: requestData.email,
@@ -1801,6 +1808,57 @@ function sendTestThankYouTo(testEmail) {
       error: error.toString(),
       message: 'テスト送信中にエラーが発生しました'
     };
+  }
+}
+
+/**
+ * 受信リクエストをすぐにスプレッドシートに記録
+ */
+function logIncomingRequest(requestData) {
+  try {
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    let debugSheet = spreadsheet.getSheetByName('受信ログ');
+    
+    if (!debugSheet) {
+      debugSheet = spreadsheet.insertSheet('受信ログ');
+      
+      // ヘッダー行を設定
+      const headers = [
+        '受信日時', 'メール', 'レビューSS有無', 'ファイル名', 
+        'MIMEタイプ', 'データ長', 'エラー'
+      ];
+      debugSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      
+      // ヘッダーのスタイル設定
+      const headerRange = debugSheet.getRange(1, 1, 1, headers.length);
+      headerRange.setBackground('#ff9900');
+      headerRange.setFontColor('white');
+      headerRange.setFontWeight('bold');
+    }
+    
+    // レビューSS情報をチェック
+    const hasReviewSS = !!requestData.reviewScreenshot;
+    const fileName = hasReviewSS ? requestData.reviewScreenshot.name : '';
+    const mimeType = hasReviewSS ? requestData.reviewScreenshot.mimeType : '';
+    const dataLength = hasReviewSS && requestData.reviewScreenshot.data ? 
+                       requestData.reviewScreenshot.data.length : 0;
+    
+    // ログデータを追加
+    const logData = [
+      new Date(),
+      requestData.email || '',
+      hasReviewSS ? 'あり' : 'なし',
+      fileName,
+      mimeType,
+      dataLength,
+      ''
+    ];
+    
+    debugSheet.appendRow(logData);
+    
+  } catch (error) {
+    console.error('受信ログ記録エラー:', error);
+    // エラーでも処理は続行
   }
 }
 
