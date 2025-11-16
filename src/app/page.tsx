@@ -51,8 +51,8 @@ export default function BentoReservationForm() {
     const now = new Date();
     const currentHour = now.getHours();
     
-    // 当日の9:00以降はモーダル表示
-    if (currentHour >= 9) {
+    // 当日の9:00〜14:00の間のみモーダル表示
+    if (currentHour >= 9 && currentHour < 14) {
       setShowTodayModal(true);
     }
   }, []);
