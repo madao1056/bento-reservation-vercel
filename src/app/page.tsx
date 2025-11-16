@@ -1,17 +1,17 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 
-// 弁当メニューの定義
+// 弁当メニューの定義（元システムと同じ）
 const MENU_ITEMS = [
-  { id: 'daily', name: '日替わり弁当', price: 500 },
-  { id: 'karaage', name: '唐揚げ弁当', price: 550 },
-  { id: 'fish', name: '焼き魚弁当', price: 600 },
-  { id: 'hamburg', name: 'ハンバーグ弁当', price: 650 },
-  { id: 'makunouchi', name: '幕の内弁当', price: 800 },
-  { id: 'special', name: '特製弁当', price: 1000 },
-  { id: 'meeting', name: '会議用弁当', price: 0 }, // 要相談
-  { id: 'other', name: 'その他カスタム注文', price: 0 }
+  { id: 'karaage', name: '唐揚げ弁当', price: 800 },
+  { id: 'curry', name: '宮崎和牛カレー（極）', price: 850 },
+  { id: 'chicken_nanban', name: 'チキン南蛮弁当', price: 800 },
+  { id: 'tonkatsu', name: '宮崎ポークのとんかつ弁当', price: 850 },
+  { id: 'ebi_fry', name: '大えびふらい弁当', price: 800 },
+  { id: 'nori_bento', name: 'レザン風のり弁', price: 750 },
+  { id: 'hamburg', name: '手ごねハンバーグ弁当', price: 880 },
+  { id: 'tamago_sand', name: 'たまごサンドBOX', price: 700 }
 ];
 
 interface MenuSelection {
@@ -26,6 +26,8 @@ interface FormData {
   pickupDate: string;
   pickupTime: string;
   message: string;
+  reviewBonus: boolean;
+  reviewScreenshot?: File;
 }
 
 export default function BentoReservationForm() {
@@ -36,11 +38,24 @@ export default function BentoReservationForm() {
     menuItems: {},
     pickupDate: '',
     pickupTime: '',
-    message: ''
+    message: '',
+    reviewBonus: false
   });
   
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [showTodayModal, setShowTodayModal] = useState(false);
+
+  // 当日予約締切チェック
+  useEffect(() => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    // 当日の9:00以降はモーダル表示
+    if (currentHour >= 9) {
+      setShowTodayModal(true);
+    }
+  }, []);
 
   // 合計金額計算
   const calculateTotal = () => {
@@ -64,6 +79,10 @@ export default function BentoReservationForm() {
       newMenuItems[itemId] = quantity;
     }
     setFormData(prev => ({ ...prev, menuItems: newMenuItems }));
+  };
+
+  const closeTodayModal = () => {
+    setShowTodayModal(false);
   };
 
   // フォーム送信処理
@@ -110,7 +129,8 @@ export default function BentoReservationForm() {
         menuItems: {},
         pickupDate: '',
         pickupTime: '',
-        message: ''
+        message: '',
+        reviewBonus: false
       });
 
     } catch (err: any) {
@@ -119,230 +139,639 @@ export default function BentoReservationForm() {
     }
   };
 
+  const formStyle = {
+    fontFamily: "'Helvetica Neue', Arial, 'Hiragino Sans', sans-serif",
+    backgroundColor: '#fef5e7',
+    margin: 0,
+    padding: '15px 5px',
+    lineHeight: 1.6,
+    minHeight: '100vh'
+  };
+
+  const containerStyle = {
+    maxWidth: '700px',
+    margin: '0 auto',
+    backgroundColor: 'white',
+    padding: '40px',
+    borderRadius: '12px',
+    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.1)'
+  };
+
+  const inputStyle = {
+    width: '100%',
+    padding: '12px 16px',
+    border: '2px solid #ecf0f1',
+    borderRadius: '6px',
+    fontSize: '16px',
+    boxSizing: 'border-box' as const,
+    transition: 'all 0.3s ease',
+    backgroundColor: '#fafafa'
+  };
+
+  const labelStyle = {
+    display: 'block',
+    marginBottom: '8px',
+    color: '#2c3e50',
+    fontWeight: 500,
+    fontSize: '15px'
+  };
+
+  const submitBtnStyle = {
+    backgroundColor: '#ff6b35',
+    color: 'white',
+    padding: '14px 32px',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '16px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    width: '100%',
+    transition: 'all 0.3s ease',
+    marginTop: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  };
+
   return (
-    <div className="min-h-screen bg-orange-50">
-      <div className="max-w-4xl mx-auto p-6">
-        {/* ヘッダー */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">🍱 惣菜屋レザン</h1>
-          <p className="text-lg text-gray-600 mb-2">お弁当のご予約・お問い合わせ</p>
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg inline-block">
-            <p className="text-sm text-blue-700">
-              📱 Instagram経由でも安心してご利用いただけます
+    <>
+      <div style={formStyle}>
+        <div style={containerStyle}>
+          {/* ヘッダー */}
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '40px',
+            paddingBottom: '20px',
+            borderBottom: '3px solid #ff6b35'
+          }}>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{
+                fontFamily: 'Georgia, serif',
+                fontSize: '42px',
+                fontWeight: 'bold',
+                color: '#2c3e50',
+                textAlign: 'center',
+                lineHeight: 1.2,
+                textShadow: '2px 2px 4px rgba(0,0,0,0.1)'
+              }}>惣菜屋レザン</div>
+              <div style={{
+                fontSize: '18px',
+                color: '#7f8c8d',
+                textAlign: 'center',
+                marginBottom: '20px'
+              }}>美味しい惣菜とお弁当のお店</div>
+            </div>
+            <h1 style={{
+              color: '#2c3e50',
+              margin: '10px 0',
+              fontWeight: 600,
+              fontSize: '28px'
+            }}>お弁当のご予約</h1>
+            <p style={{
+              color: '#7f8c8d',
+              margin: 0,
+              fontSize: '14px',
+              lineHeight: 1.5
+            }}>
+              いつもご利用ありがとうございます。<br/>
+              以下のフォームからご予約をお願いいたします。
             </p>
           </div>
-        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* 基本情報 */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">基本情報</h2>
-            
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  お名前 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  placeholder="田中太郎"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  お電話番号 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  placeholder="090-1234-5678"
-                />
-              </div>
+          <form onSubmit={handleSubmit}>
+            {/* 基本情報 */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={labelStyle}>
+                お名前 <span style={{ color: '#e74c3c', marginLeft: '4px' }}>*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                style={inputStyle}
+                placeholder="山田 太郎"
+              />
             </div>
 
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                メールアドレス <span className="text-red-500">*</span>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={labelStyle}>
+                メールアドレス <span style={{ color: '#e74c3c', marginLeft: '4px' }}>*</span>
               </label>
               <input
                 type="email"
                 required
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                style={inputStyle}
                 placeholder="example@email.com"
               />
             </div>
-          </div>
 
-          {/* メニュー選択 */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">メニュー選択 <span className="text-red-500">*</span></h2>
-            
-            <div className="grid gap-4">
-              {MENU_ITEMS.map(item => (
-                <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-800">{item.name}</h3>
-                    <p className="text-sm text-gray-600">
-                      {item.price === 0 ? '要相談' : `${item.price.toLocaleString()}円`}
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => updateMenuQuantity(item.id, (formData.menuItems[item.id] || 0) - 1)}
-                      className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300"
-                      disabled={!formData.menuItems[item.id]}
-                    >
-                      -
-                    </button>
-                    
-                    <span className="w-8 text-center">{formData.menuItems[item.id] || 0}</span>
-                    
-                    <button
-                      type="button"
-                      onClick={() => updateMenuQuantity(item.id, (formData.menuItems[item.id] || 0) + 1)}
-                      className="w-8 h-8 rounded-full bg-orange-200 flex items-center justify-center hover:bg-orange-300"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={labelStyle}>
+                お電話番号 <span style={{ color: '#e74c3c', marginLeft: '4px' }}>*</span>
+              </label>
+              <input
+                type="tel"
+                required
+                value={formData.phone}
+                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                style={inputStyle}
+                placeholder="090-1234-5678"
+              />
             </div>
 
-            {/* 合計表示 */}
-            <div className="mt-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-gray-800">合計数量: {calculateQuantity()}個</span>
-                <span className="font-bold text-lg text-orange-600">
-                  合計金額: {calculateTotal().toLocaleString()}円
-                </span>
-              </div>
-              {calculateTotal() === 0 && calculateQuantity() > 0 && (
-                <p className="text-sm text-orange-600 mt-2">
-                  ※ 要相談メニューが含まれています。お電話でご相談ください。
-                </p>
-              )}
-            </div>
-          </div>
+            <div style={{ borderTop: '2px solid #ecf0f1', margin: '30px 0' }}></div>
 
-          {/* 受け取り日時 */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">受け取り日時</h2>
-            
-            <div className="grid md:grid-cols-2 gap-4">
+            {/* メニュー選択 */}
+            <div style={{
+              backgroundColor: '#f8f9fa',
+              padding: '10px',
+              borderRadius: '8px',
+              marginBottom: '20px'
+            }}>
+              <h3 style={{
+                color: '#2c3e50',
+                marginTop: 0,
+                marginBottom: '15px',
+                fontSize: '18px'
+              }}>お弁当のご予約</h3>
+              <p style={{
+                color: '#6c757d',
+                fontSize: '13px',
+                marginTop: '5px'
+              }}>複数のメニューを選択できます。不要なメニューは数量を0にしてください。</p>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  受け取り日
+                {MENU_ITEMS.map(item => (
+                  <div key={item.id} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px',
+                    marginBottom: '8px',
+                    backgroundColor: 'white',
+                    border: '1px solid #ecf0f1',
+                    borderRadius: '6px',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <label style={{
+                      margin: 0,
+                      fontWeight: 500,
+                      color: '#2c3e50',
+                      flex: 1
+                    }}>
+                      {item.name}<br/>（{item.price}円）
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="50"
+                      value={formData.menuItems[item.id] || 0}
+                      onChange={(e) => updateMenuQuantity(item.id, parseInt(e.target.value) || 0)}
+                      style={{
+                        width: '80px',
+                        marginLeft: '15px',
+                        textAlign: 'center',
+                        padding: '8px',
+                        border: '2px solid #ecf0f1',
+                        borderRadius: '6px',
+                        fontSize: '16px'
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div style={{
+                backgroundColor: '#f8f9fa',
+                padding: '15px',
+                borderRadius: '6px',
+                marginTop: '15px',
+                textAlign: 'center'
+              }}>
+                <p style={{
+                  color: '#2c3e50',
+                  fontSize: '16px',
+                  marginBottom: '5px'
+                }}>
+                  <strong>合計数量: {calculateQuantity()}個</strong>
+                </p>
+                <p style={{
+                  color: '#2c3e50',
+                  fontSize: '16px',
+                  marginBottom: '5px'
+                }}>
+                  <strong>合計金額: ¥{calculateTotal().toLocaleString()}</strong>
+                </p>
+                <p style={{
+                  color: '#6c757d',
+                  fontSize: '13px',
+                  marginTop: '5px'
+                }}>
+                  ※10個以上のご注文は<br/>事前にお電話(080-4613-9761)でご相談ください
+                </p>
+              </div>
+
+              {/* 受け取り日時 */}
+              <div style={{ marginBottom: '24px', marginTop: '20px' }}>
+                <label style={labelStyle}>
+                  受け取り日付<span style={{ color: '#e74c3c' }}>*</span>
                 </label>
                 <input
                   type="date"
+                  required
                   value={formData.pickupDate}
                   onChange={(e) => setFormData(prev => ({ ...prev, pickupDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  style={inputStyle}
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  受け取り時間
+              <div style={{ marginBottom: '24px' }}>
+                <label style={labelStyle}>
+                  受け取り時間<span style={{ color: '#e74c3c' }}>*</span>
                 </label>
-                <input
-                  type="time"
+                <select
+                  required
                   value={formData.pickupTime}
                   onChange={(e) => setFormData(prev => ({ ...prev, pickupTime: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
+                  style={{
+                    ...inputStyle,
+                    cursor: 'pointer',
+                    appearance: 'none',
+                    paddingRight: '40px'
+                  }}
+                >
+                  <option value="">選択してください</option>
+                  <option value="11:00">11:00</option>
+                  <option value="11:30">11:30</option>
+                  <option value="12:00">12:00</option>
+                  <option value="12:30">12:30</option>
+                  <option value="13:00">13:00</option>
+                  <option value="13:30">13:30</option>
+                  <option value="14:00">14:00</option>
+                </select>
+                <p style={{
+                  marginTop: '5px',
+                  color: '#666',
+                  fontSize: '13px'
+                }}>※受け取り時間: 11:00〜14:00</p>
               </div>
             </div>
-          </div>
 
-          {/* その他・ご要望 */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">その他・ご要望</h2>
-            
-            <textarea
-              value={formData.message}
-              onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
-              rows={5}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-              placeholder={`アレルギー情報、会議用弁当の詳細、特別なご要望などがございましたらお書きください。
+            <div style={{ borderTop: '2px solid #ecf0f1', margin: '30px 0' }}></div>
 
-会議用弁当の場合は以下をご記入ください：
-• ご希望の個数
-• ご予算（1個あたり）
-• 会議の種類・時間
-• 特別なご要望`}
-            />
-          </div>
+            {/* Googleレビュー特典 */}
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #ffd54f, #ffb74d)',
+                color: '#e65100',
+                marginBottom: '15px',
+                padding: '15px',
+                borderRadius: '8px'
+              }}>
+                <h4 style={{
+                  margin: '0 0 8px 0',
+                  fontSize: '18px'
+                }}>ご利用いただいているお客様へ</h4>
+                <p style={{
+                  margin: 0,
+                  fontSize: '14px',
+                  lineHeight: 1.5
+                }}>
+                  よろしければ、Googleのクチコミにてお店のご感想をお聞かせください。<br/>
+                  「美味しかった。また利用したい！」などの感想をいただく機会が増え、本当に嬉しく思います。<br/>
+                  投稿したレビューのスクリーンショットは、次回ご予約される際に以下から添付してください。
+                </p>
+              </div>
 
-          {/* 送信ボタン */}
-          <div className="text-center">
+              <div style={{ margin: '15px 0' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: 500
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.reviewBonus}
+                    onChange={(e) => setFormData(prev => ({ ...prev, reviewBonus: e.target.checked }))}
+                    style={{
+                      marginRight: '8px',
+                      width: '18px',
+                      height: '18px',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span style={{ color: '#2c3e50' }}>
+                    Googleレビューのスクショを送る<br/>
+                    <small style={{
+                      color: '#7f8c8d',
+                      fontWeight: 'normal'
+                    }}>（お一人様1回限り・レビュー投稿済みの方のみ）</small>
+                  </span>
+                </label>
+              </div>
+
+              {formData.reviewBonus && (
+                <div style={{
+                  display: formData.reviewBonus ? 'block' : 'none',
+                  marginTop: '15px',
+                  padding: '10px',
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '8px',
+                  borderLeft: '4px solid #ff6b35'
+                }}>
+                  <label style={labelStyle}>レビューのスクリーンショット</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setFormData(prev => ({ ...prev, reviewScreenshot: file }));
+                      }
+                    }}
+                    style={{
+                      width: 'fit-content',
+                      padding: '8px',
+                      border: '2px solid #ecf0f1',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      marginTop: '8px'
+                    }}
+                  />
+                  <p style={{
+                    marginTop: '8px',
+                    color: '#6c757d',
+                    fontSize: '13px'
+                  }}>
+                    💡 <strong>レビュー投稿済みの方へ：</strong>スクリーンショットをこちらにアップロードしてください。<br/>
+                    ※ファイルサイズは5MB以下、画像形式（JPG, PNG, GIF, WebP）をお選びください
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* 備考欄 */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={labelStyle}>備考欄</label>
+              <textarea
+                value={formData.message}
+                onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
+                style={{
+                  ...inputStyle,
+                  resize: 'vertical',
+                  minHeight: '120px'
+                }}
+                placeholder="ご要望やアレルギーなどございましたらご記入ください"
+              />
+              <p style={{
+                color: '#6c757d',
+                fontSize: '13px',
+                marginTop: '5px'
+              }}>
+                例：アレルギー：卵・乳製品
+              </p>
+            </div>
+
+            {/* 会議用弁当案内 */}
+            <div style={{
+              backgroundColor: '#fff3cd',
+              borderLeft: '4px solid #ffc107',
+              padding: '10px',
+              marginBottom: '20px',
+              borderRadius: '6px'
+            }}>
+              <h3 style={{
+                margin: '0 0 10px 0',
+                color: '#856404',
+                fontSize: '16px'
+              }}>会議用弁当・大量注文の場合</h3>
+              <p style={{
+                margin: '5px 0',
+                color: '#856404',
+                fontSize: '14px',
+                lineHeight: 1.6
+              }}>以下の情報を「備考欄」にご記入ください：</p>
+              <p style={{
+                margin: '5px 0',
+                color: '#856404',
+                fontSize: '14px'
+              }}>• ご希望の個数</p>
+              <p style={{
+                margin: '5px 0',
+                color: '#856404',
+                fontSize: '14px'
+              }}>• 受け取りされる方のお名前</p>
+              <p style={{
+                margin: '5px 0',
+                color: '#856404',
+                fontSize: '14px'
+              }}>• ご予算（1個あたり）</p>
+              <p style={{
+                color: '#6c757d',
+                fontSize: '13px',
+                marginTop: '5px'
+              }}>
+                記入例：会議用弁当30個、田中様受取、予算1,200円/個
+              </p>
+              <p style={{
+                color: '#d63031',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                margin: '10px 0'
+              }}>
+                ※会議用弁当は1,000円〜承っております。詳細はお電話または備考欄にてご相談ください。
+              </p>
+            </div>
+
             <button
               type="submit"
               disabled={status === 'loading'}
-              className="px-8 py-4 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              style={{
+                ...submitBtnStyle,
+                opacity: status === 'loading' ? 0.5 : 1,
+                cursor: status === 'loading' ? 'not-allowed' : 'pointer'
+              }}
             >
-              {status === 'loading' ? '送信中...' : 'ご予約を送信する'}
+              {status === 'loading' ? (
+                <span>
+                  <span style={{
+                    display: 'inline-block',
+                    border: '2px solid #ffffff40',
+                    borderTop: '2px solid #ffffff',
+                    borderRadius: '50%',
+                    width: '16px',
+                    height: '16px',
+                    animation: 'spin 1s linear infinite',
+                    marginRight: '8px',
+                    verticalAlign: 'middle'
+                  }}></span>
+                  送信中...
+                </span>
+              ) : '送信する'}
             </button>
-          </div>
-        </form>
+          </form>
 
-        {/* 結果表示 */}
-        {status === 'success' && (
-          <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded-lg">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-green-800 mb-2">
-                ✅ ご予約ありがとうございました！
-              </h3>
-              <p className="text-green-700 mb-4">
-                お客様のご予約を承りました。確認のメールをお送りしておりますのでご確認ください。
-              </p>
-              <div className="bg-white p-4 rounded border border-green-200">
-                <p className="text-sm text-green-700">
-                  📞 お急ぎの場合やご質問がございましたら<br />
-                  <strong>080-4613-9761</strong> までお電話ください
-                </p>
-              </div>
+          {/* 結果表示 */}
+          {status === 'success' && (
+            <div style={{
+              backgroundColor: '#d4edda',
+              color: '#155724',
+              padding: '16px',
+              borderRadius: '6px',
+              marginTop: '20px',
+              border: '1px solid #c3e6cb'
+            }}>
+              ご予約・お問い合わせありがとうございます。
             </div>
-          </div>
-        )}
+          )}
 
-        {status === 'error' && (
-          <div className="mt-8 p-6 bg-red-50 border border-red-200 rounded-lg">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-red-800 mb-2">
-                ❌ エラーが発生しました
-              </h3>
-              <p className="text-red-700 mb-4">{errorMessage}</p>
-              <div className="bg-white p-4 rounded border border-red-200">
-                <p className="text-sm text-red-700">
-                  お手数をおかけして申し訳ございません。<br />
-                  お電話でのご予約も承っております：<br />
-                  <strong>080-4613-9761</strong>
-                </p>
-              </div>
+          {status === 'error' && (
+            <div style={{
+              backgroundColor: '#f8d7da',
+              color: '#721c24',
+              padding: '16px',
+              borderRadius: '6px',
+              marginTop: '20px',
+              border: '1px solid #f5c6cb'
+            }}>
+              {errorMessage}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* フッター */}
-        <div className="mt-12 text-center text-gray-500 text-sm">
-          <p>📱 Instagram経由でも安全にご利用いただけます</p>
-          <p>Powered by Vercel + Google Apps Script</p>
         </div>
       </div>
-    </div>
+
+      {/* 当日予約締切モーダル */}
+      {showTodayModal && (
+        <div style={{
+          position: 'fixed',
+          zIndex: 1000,
+          left: 0,
+          top: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(2px)'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            margin: '5% auto',
+            padding: '20px',
+            borderRadius: '12px',
+            width: '85%',
+            maxWidth: '450px',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
+            position: 'relative',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '25px',
+              paddingBottom: '15px',
+              borderBottom: '2px solid #ff6b35'
+            }}>
+              <h2 style={{
+                color: '#ff6b35',
+                margin: 0,
+                fontSize: '22px',
+                fontWeight: 'bold'
+              }}>当日のご予約について</h2>
+              <div style={{
+                color: '#666',
+                fontSize: '14px',
+                marginTop: '8px'
+              }}>現在時刻: {new Date().toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'})}</div>
+            </div>
+
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '25px',
+              lineHeight: 1.6
+            }}>
+              <div style={{
+                color: '#dc3545',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                marginBottom: '15px'
+              }}>
+                当日分の予約フォームでの受付は<br/>終了しています
+              </div>
+
+              <div style={{
+                color: '#495057',
+                fontSize: '14px',
+                marginBottom: '20px'
+              }}>
+                当日分の予約フォームでの受付は<br/>9:00で終了させていただいております。
+              </div>
+
+              <div style={{
+                backgroundColor: '#fff3cd',
+                padding: '15px',
+                borderRadius: '8px',
+                borderLeft: '4px solid #ffc107',
+                margin: '20px 0'
+              }}>
+                <strong style={{ color: '#856404' }}>当日のご注文をご希望の方は</strong><br/>
+                お電話にてお問い合わせください<br/>
+                <a href="tel:080-4613-9761" style={{
+                  color: '#007bff',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  textDecoration: 'none',
+                  display: 'inline-block',
+                  marginTop: '5px'
+                }}>080-4613-9761</a>
+              </div>
+
+              <div style={{
+                backgroundColor: '#e3f2fd',
+                padding: '15px',
+                borderRadius: '8px',
+                borderLeft: '4px solid #2196F3',
+                margin: '20px 0',
+                color: '#1976d2'
+              }}>
+                <strong>翌日以降のご予約の方は</strong><br/>
+                下記の「翌日以降で予約」ボタンを押して<br/>
+                こちらの予約フォームよりお願いいたします
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'center' }}>
+              <button
+                onClick={closeTodayModal}
+                style={{
+                  backgroundColor: '#ff6b35',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 30px',
+                  borderRadius: '6px',
+                  fontSize: '16px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  minWidth: '120px'
+                }}
+              >
+                翌日以降で予約
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+    </>
   );
 }

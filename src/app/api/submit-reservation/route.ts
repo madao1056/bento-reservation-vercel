@@ -45,12 +45,29 @@ export async function POST(req: NextRequest) {
       );
     }
     
+    // 元のシステムのメニューIDに変換
+    const convertedMenuItems: { [key: string]: number } = {};
+    Object.entries(body.menuItems).forEach(([itemId, quantity]) => {
+      const menuMap: { [key: string]: string } = {
+        'karaage': '唐揚げ弁当',
+        'curry': '宮崎和牛カレー（極）',
+        'chicken_nanban': 'チキン南蛮弁当',
+        'tonkatsu': '宮崎ポークのとんかつ弁当',
+        'ebi_fry': '大えびふらい弁当',
+        'nori_bento': 'レザン風のり弁',
+        'hamburg': '手ごねハンバーグ弁当',
+        'tamago_sand': 'たまごサンドBOX'
+      };
+      const menuName = menuMap[itemId] || itemId;
+      convertedMenuItems[menuName] = quantity;
+    });
+
     // GASに送信するデータを整形
     const gasData = {
       name: body.name,
       email: body.email,
       phone: body.phone,
-      menuItems: body.menuItems,
+      menuItems: convertedMenuItems,
       pickupDateTime: body.pickupDate && body.pickupTime 
         ? `${body.pickupDate}T${body.pickupTime}` 
         : null,
