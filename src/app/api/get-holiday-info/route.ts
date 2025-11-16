@@ -51,13 +51,22 @@ export async function GET(req: NextRequest) {
     const gasResult = await gasResponse.json();
     console.log('GAS定休日処理結果:', gasResult);
 
-    if (!gasResult.success) {
-      console.error('GAS側で定休日情報取得エラーが発生:', gasResult);
+    // GASからの直接レスポンス、または success プロパティを含むレスポンス両方に対応
+    const actualData = gasResult.success !== undefined ? gasResult : {
+      success: true,
+      isTodayHoliday: gasResult.isTodayHoliday || false,
+      holidays: gasResult.holidays || [],
+      debug: gasResult.debug
+    };
+
+    if (actualData.success === false) {
+      console.error('GAS側で定休日情報取得エラーが発生:', actualData);
       return NextResponse.json(
         { 
           success: false, 
-          error: gasResult.error || '定休日情報の取得に失敗しました',
-          details: 'GAS処理エラー'
+          error: actualData.error || '定休日情報の取得に失敗しました',
+          details: 'GAS処理エラー',
+          debug: actualData.debug
         },
         { status: 500 }
       );
@@ -66,7 +75,11 @@ export async function GET(req: NextRequest) {
     // 成功レスポンス
     return NextResponse.json({
       success: true,
-      data: gasResult,
+      data: {
+        isTodayHoliday: actualData.isTodayHoliday || false,
+        holidays: actualData.holidays || [],
+        debug: actualData.debug
+      },
       timestamp: new Date().toISOString()
     });
     

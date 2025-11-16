@@ -408,9 +408,13 @@ function getHolidayDates() {
     let holidaySheet = spreadsheet.getSheetByName('定休日');
     
     if (!holidaySheet) {
-      // 定休日シートが存在しない場合は空配列を返す
-      console.log('定休日シートが見つかりませんでした');
-      return [];
+      // 定休日シートが存在しない場合は自動作成
+      console.log('定休日シートが見つかりません。新しく作成します。');
+      holidaySheet = createHolidaySheet(spreadsheet);
+      if (!holidaySheet) {
+        console.log('定休日シートの作成に失敗しました。空配列を返します。');
+        return [];
+      }
     }
     
     // A列から日付データを取得（ヘッダー行をスキップ）
@@ -458,14 +462,74 @@ function isDateHoliday(dateStr) {
 }
 
 /**
+ * 定休日シートを作成する関数
+ */
+function createHolidaySheet(spreadsheet) {
+  try {
+    const holidaySheet = spreadsheet.insertSheet('定休日');
+    
+    // ヘッダーを設定
+    holidaySheet.getRange('A1').setValue('定休日');
+    holidaySheet.getRange('A1').setFontWeight('bold');
+    
+    // サンプル定休日を追加（年末年始）
+    const sampleDates = [
+      new Date('2025-12-29'),
+      new Date('2025-12-30'), 
+      new Date('2025-12-31'),
+      new Date('2026-01-01')
+    ];
+    
+    sampleDates.forEach((date, index) => {
+      holidaySheet.getRange(index + 2, 1).setValue(date);
+    });
+    
+    console.log('定休日シートを作成しました');
+    return holidaySheet;
+    
+  } catch (error) {
+    console.error('定休日シート作成エラー:', error);
+    return null;
+  }
+}
+
+/**
  * クライアント側から定休日リストを取得する（元システムと同じ）
  * @returns {Object} 定休日情報
  */
 function getHolidayInfo() {
-  return {
-    isTodayHoliday: checkIfTodayIsHoliday(),
-    holidays: getHolidayDates()
-  };
+  try {
+    const holidays = getHolidayDates();
+    const isTodayHoliday = checkIfTodayIsHoliday();
+    
+    console.log('getHolidayInfo結果:', {
+      isTodayHoliday: isTodayHoliday,
+      holidays: holidays,
+      holidayCount: holidays.length
+    });
+    
+    return {
+      isTodayHoliday: isTodayHoliday,
+      holidays: holidays,
+      debug: {
+        spreadsheetId: SPREADSHEET_ID,
+        timestamp: new Date().toISOString(),
+        holidayCount: holidays.length
+      }
+    };
+  } catch (error) {
+    console.error('getHolidayInfo エラー:', error);
+    return {
+      isTodayHoliday: false,
+      holidays: [],
+      error: error.message,
+      debug: {
+        spreadsheetId: SPREADSHEET_ID,
+        timestamp: new Date().toISOString(),
+        errorMessage: error.message
+      }
+    };
+  }
 }
 
 /**
@@ -505,4 +569,36 @@ function testGetHolidayInfo() {
   const holidayInfo = getHolidayInfo();
   console.log('定休日情報:', holidayInfo);
   console.log('=== 定休日情報取得テスト完了 ===');
+}
+
+/**
+ * スプレッドシートの全シート名を確認するテスト関数
+ */
+function checkSpreadsheetSheets() {
+  console.log('=== スプレッドシート構成確認 ===');
+  try {
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheets = spreadsheet.getSheets();
+    
+    console.log('スプレッドシート名:', spreadsheet.getName());
+    console.log('シート数:', sheets.length);
+    
+    sheets.forEach((sheet, index) => {
+      console.log(`シート${index + 1}: "${sheet.getName()}"`);
+      
+      // 各シートの基本情報も表示
+      console.log(`  - 行数: ${sheet.getLastRow()}`);
+      console.log(`  - 列数: ${sheet.getLastColumn()}`);
+      
+      // A1セルの内容を表示（ヘッダーの確認）
+      if (sheet.getLastRow() > 0) {
+        const a1Value = sheet.getRange('A1').getValue();
+        console.log(`  - A1セル: "${a1Value}"`);
+      }
+    });
+    
+  } catch (error) {
+    console.error('スプレッドシート確認エラー:', error);
+  }
+  console.log('=== スプレッドシート構成確認完了 ===');
 }
