@@ -11,6 +11,25 @@ const SHOP_NAME = '惣菜屋レザン'; // お店の名前を設定
 const SPREADSHEET_ID = '1ZnxeHsGGMx9awxzK3eTqrrjtbWjphaEiA4Cs-eVq68Q'; // 実際のスプレッドシートIDに置き換えてください
 
 /**
+ * リクエストルーティング - GET/POSTリクエストを適切にルーティング
+ */
+function doGet(e) {
+  try {
+    const action = e.parameter.action;
+    
+    if (action === 'getHolidayInfo') {
+      return createSuccessResponse(getHolidayInfo());
+    }
+    
+    return createErrorResponse('不正なアクションです', 400);
+    
+  } catch (error) {
+    console.error('=== GETリクエストエラー ===', error);
+    return createErrorResponse('システムエラーが発生しました: ' + error.message, 500);
+  }
+}
+
+/**
  * Vercelからのフォーム送信を受け取るAPI
  * doPost関数でPOSTリクエストを処理
  */
@@ -380,6 +399,76 @@ function createErrorResponse(message, statusCode = 500) {
 }
 
 /**
+ * 定休日情報を取得する関数（元システムと同じ）
+ * @returns {Array} 定休日の配列
+ */
+function getHolidayDates() {
+  try {
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    let holidaySheet = spreadsheet.getSheetByName('定休日');
+    
+    if (!holidaySheet) {
+      // 定休日シートが存在しない場合は空配列を返す
+      console.log('定休日シートが見つかりませんでした');
+      return [];
+    }
+    
+    // A列から日付データを取得（ヘッダー行をスキップ）
+    const dataRange = holidaySheet.getRange('A2:A').getValues();
+    const holidays = [];
+    
+    for (let i = 0; i < dataRange.length; i++) {
+      const cellValue = dataRange[i][0];
+      if (cellValue && cellValue instanceof Date) {
+        // YYYY-MM-DD形式で格納
+        const dateStr = Utilities.formatDate(cellValue, 'Asia/Tokyo', 'yyyy-MM-dd');
+        holidays.push(dateStr);
+      } else if (cellValue === '' || cellValue === null) {
+        // 空行に到達したら終了
+        break;
+      }
+    }
+    
+    console.log('取得した定休日:', holidays);
+    return holidays;
+    
+  } catch (error) {
+    console.error('定休日取得エラー:', error);
+    return [];
+  }
+}
+
+/**
+ * 今日が定休日かチェックする
+ * @returns {boolean} 定休日の場合true
+ */
+function checkIfTodayIsHoliday() {
+  const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
+  return isDateHoliday(today);
+}
+
+/**
+ * 指定日が定休日かチェックする
+ * @param {string} dateStr YYYY-MM-DD形式の日付文字列
+ * @returns {boolean} 定休日の場合true
+ */
+function isDateHoliday(dateStr) {
+  const holidays = getHolidayDates();
+  return holidays.includes(dateStr);
+}
+
+/**
+ * クライアント側から定休日リストを取得する（元システムと同じ）
+ * @returns {Object} 定休日情報
+ */
+function getHolidayInfo() {
+  return {
+    isTodayHoliday: checkIfTodayIsHoliday(),
+    holidays: getHolidayDates()
+  };
+}
+
+/**
  * テスト用関数
  */
 function testVercelBridge() {
@@ -406,4 +495,14 @@ function testVercelBridge() {
   const result = doPost(testData);
   console.log('テスト結果:', result.getContent());
   console.log('=== Vercel Bridge テスト完了 ===');
+}
+
+/**
+ * 定休日情報取得テスト
+ */
+function testGetHolidayInfo() {
+  console.log('=== 定休日情報取得テスト開始 ===');
+  const holidayInfo = getHolidayInfo();
+  console.log('定休日情報:', holidayInfo);
+  console.log('=== 定休日情報取得テスト完了 ===');
 }

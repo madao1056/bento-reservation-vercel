@@ -45,16 +45,49 @@ export default function BentoReservationForm() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [showTodayModal, setShowTodayModal] = useState(false);
+  const [holidayInfo, setHolidayInfo] = useState<{
+    isTodayHoliday: boolean;
+    holidays: string[];
+  }>({
+    isTodayHoliday: false,
+    holidays: []
+  });
 
-  // 当日予約締切チェック
+  // 定休日情報取得とモーダル制御
   useEffect(() => {
-    const now = new Date();
-    const currentHour = now.getHours();
-    
-    // 当日の9:00〜14:00の間のみモーダル表示
-    if (currentHour >= 9 && currentHour < 14) {
-      setShowTodayModal(true);
-    }
+    const fetchHolidayInfo = async () => {
+      try {
+        const response = await fetch('/api/get-holiday-info');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            setHolidayInfo({
+              isTodayHoliday: result.data.isTodayHoliday || false,
+              holidays: result.data.holidays || []
+            });
+
+            // 定休日の場合は当日予約締切モーダルを表示しない
+            if (result.data.isTodayHoliday) {
+              setShowTodayModal(false);
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('定休日情報の取得に失敗:', error);
+      }
+
+      // 当日予約締切チェック（定休日でない場合のみ）
+      const now = new Date();
+      const currentHour = now.getHours();
+      
+      // 当日の9:00〜14:00の間のみモーダル表示
+      if (currentHour >= 9 && currentHour < 14) {
+        setShowTodayModal(true);
+      }
+    };
+
+    fetchHolidayInfo();
   }, []);
 
   // 合計金額計算
@@ -99,6 +132,11 @@ export default function BentoReservationForm() {
 
       if (Object.keys(formData.menuItems).length === 0) {
         throw new Error('メニューを1つ以上選択してください。');
+      }
+
+      // 定休日チェック
+      if (formData.pickupDate && holidayInfo.holidays.includes(formData.pickupDate)) {
+        throw new Error('ご指定の日は定休日です。別の日付をお選びください。');
       }
 
       const res = await fetch('/api/submit-reservation', {
@@ -386,6 +424,50 @@ export default function BentoReservationForm() {
                   onChange={(e) => setFormData(prev => ({ ...prev, pickupDate: e.target.value }))}
                   style={inputStyle}
                 />
+                
+                {/* 定休日表示 */}
+                {holidayInfo.holidays.length > 0 && (
+                  <div style={{
+                    display: 'block',
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '6px',
+                    padding: '10px',
+                    marginTop: '10px'
+                  }}>
+                    <strong style={{ color: '#dc3545' }}>定休日:</strong>
+                    <div style={{
+                      marginTop: '5px',
+                      color: '#495057',
+                      fontSize: '14px'
+                    }}>
+                      {holidayInfo.holidays.map((date, index) => {
+                        const dateObj = new Date(date + 'T00:00:00');
+                        const formattedDate = dateObj.toLocaleDateString('ja-JP', {
+                          month: 'numeric',
+                          day: 'numeric',
+                          weekday: 'short'
+                        });
+                        return (
+                          <span
+                            key={index}
+                            style={{
+                              display: 'inline-block',
+                              marginRight: '10px',
+                              marginBottom: '5px'
+                            }}
+                          >
+                            {formattedDate}
+                          </span>
+                        );
+                      }).reduce((prev, curr, index) => {
+                        if (index > 0 && (index % 4) === 0) {
+                          return [...prev, <br key={`br-${index}`} />, curr];
+                        }
+                        return [...prev, curr];
+                      }, [] as React.ReactNode[])}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={{ marginBottom: '24px' }}>
