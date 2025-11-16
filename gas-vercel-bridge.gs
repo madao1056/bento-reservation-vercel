@@ -1424,33 +1424,197 @@ function testThankYouEmailTrigger(email = 'test@example.com', pickupDateTime = '
  */
 function saveReviewScreenshot(fileData, email) {
   try {
+    console.log('=== レビューSS保存開始 ===');
+    console.log('fileDataの内容:', {
+      hasData: !!fileData?.data,
+      name: fileData?.name,
+      mimeType: fileData?.mimeType,
+      size: fileData?.size,
+      dataLength: fileData?.data ? fileData.data.length : 0
+    });
+    
     if (!fileData || !fileData.data) {
+      console.log('ファイルデータなし - 処理終了');
       return 'なし';
     }
     
     // base64データをデコード
+    console.log('Base64デコード処理開始');
     const base64Data = fileData.data.split(',')[1]; // data:image/jpeg;base64, の部分を除去
-    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), fileData.mimeType, fileData.name);
+    console.log('Base64データ長:', base64Data ? base64Data.length : 0);
     
-    // Google Driveフォルダを取得
-    const folder = DriveApp.getFolderById(REVIEW_FOLDER_ID);
+    if (!base64Data) {
+      console.error('Base64データが無効');
+      return 'エラー: Base64データが無効です';
+    }
+    
+    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), fileData.mimeType, fileData.name);
+    console.log('Blob作成完了 - サイズ:', blob.getBytes().length);
+    
+    // Google Driveフォルダアクセステスト
+    console.log('Google Driveフォルダアクセス開始 - ID:', REVIEW_FOLDER_ID);
+    let folder;
+    try {
+      folder = DriveApp.getFolderById(REVIEW_FOLDER_ID);
+      console.log('フォルダ取得成功:', folder.getName());
+    } catch (folderError) {
+      console.error('フォルダアクセスエラー:', folderError);
+      
+      // デフォルトのルートフォルダにレビューフォルダを作成
+      console.log('ルートフォルダにレビューフォルダ作成中...');
+      folder = DriveApp.createFolder('レビューSS_' + Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMdd'));
+      console.log('新しいフォルダ作成完了 ID:', folder.getId());
+      
+      // 作成したフォルダIDをログ出力（手動更新用）
+      console.log('⚠️ 新しいREVIEW_FOLDER_IDに更新してください:', folder.getId());
+    }
     
     // ファイル名を生成（日時とメールアドレスを含む）
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMdd_HHmmss');
-    const fileName = `review_${timestamp}_${email.replace('@', '_at_')}_${fileData.name}`;
+    const fileName = `review_${timestamp}_${email.replace('@', '_at_').replace(/\./g, '_')}_${fileData.name}`;
+    console.log('生成ファイル名:', fileName);
     
     // ファイルを保存
+    console.log('ファイル保存処理開始...');
     const file = folder.createFile(blob);
     file.setName(fileName);
+    console.log('ファイル保存完了');
     
     // ファイルのURLを取得
     const fileUrl = file.getUrl();
+    console.log('ファイルURL取得完了:', fileUrl);
     
-    console.log('レビュースクリーンショット保存完了:', fileName);
+    console.log('✅ レビュースクリーンショット保存完了:', fileName);
+    console.log('=== レビューSS保存終了 ===');
     return fileUrl;
     
   } catch (error) {
-    console.error('レビュースクリーンショット保存エラー:', error);
+    console.error('❌ レビュースクリーンショット保存エラー:', error);
+    console.error('エラーの詳細:', error.toString());
+    console.error('エラースタック:', error.stack);
     return 'エラー: ' + error.message;
+  }
+}
+
+/**
+ * レビューSS保存機能のテスト
+ */
+function testReviewScreenshotSave() {
+  try {
+    console.log('=== レビューSS保存テスト開始 ===');
+    
+    // ダミーの画像データ（1x1ピクセルのPNG）
+    const testImageBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+    
+    const testFileData = {
+      name: 'test-review.png',
+      data: testImageBase64,
+      mimeType: 'image/png',
+      size: 100
+    };
+    
+    const testEmail = 'test@example.com';
+    
+    console.log('テストデータ:', {
+      name: testFileData.name,
+      mimeType: testFileData.mimeType,
+      dataLength: testFileData.data.length
+    });
+    
+    const result = saveReviewScreenshot(testFileData, testEmail);
+    
+    console.log('テスト結果:', result);
+    
+    if (result.includes('エラー')) {
+      return {
+        success: false,
+        error: result,
+        message: 'レビューSS保存テストに失敗しました'
+      };
+    } else {
+      return {
+        success: true,
+        url: result,
+        message: 'レビューSS保存テストが成功しました'
+      };
+    }
+    
+  } catch (error) {
+    console.error('テスト中にエラーが発生:', error);
+    return {
+      success: false,
+      error: error.toString(),
+      message: 'テスト実行中にエラーが発生しました'
+    };
+  }
+}
+
+/**
+ * Google Driveフォルダの確認とテスト
+ */
+function checkDriveFolderAccess() {
+  try {
+    console.log('=== Google Driveアクセステスト開始 ===');
+    console.log('REVIEW_FOLDER_ID:', REVIEW_FOLDER_ID);
+    
+    // 現在のフォルダアクセステスト
+    try {
+      const folder = DriveApp.getFolderById(REVIEW_FOLDER_ID);
+      console.log('✅ フォルダアクセス成功');
+      console.log('フォルダ名:', folder.getName());
+      console.log('フォルダURL:', folder.getUrl());
+      
+      // フォルダ内のファイル数確認
+      const files = folder.getFiles();
+      let fileCount = 0;
+      while (files.hasNext()) {
+        files.next();
+        fileCount++;
+      }
+      console.log('フォルダ内ファイル数:', fileCount);
+      
+      return {
+        success: true,
+        folderName: folder.getName(),
+        folderUrl: folder.getUrl(),
+        fileCount: fileCount,
+        message: 'フォルダアクセス正常'
+      };
+      
+    } catch (folderError) {
+      console.error('❌ フォルダアクセスエラー:', folderError);
+      
+      // 利用可能なフォルダをリスト表示
+      console.log('利用可能なフォルダを検索中...');
+      const folders = DriveApp.getFolders();
+      const availableFolders = [];
+      
+      let count = 0;
+      while (folders.hasNext() && count < 10) {
+        const folder = folders.next();
+        availableFolders.push({
+          id: folder.getId(),
+          name: folder.getName()
+        });
+        count++;
+      }
+      
+      console.log('利用可能なフォルダ（最初の10個）:', availableFolders);
+      
+      return {
+        success: false,
+        error: folderError.toString(),
+        availableFolders: availableFolders,
+        message: 'フォルダアクセスに失敗しました'
+      };
+    }
+    
+  } catch (error) {
+    console.error('Driveアクセステストエラー:', error);
+    return {
+      success: false,
+      error: error.toString(),
+      message: 'Driveアクセステスト中にエラーが発生'
+    };
   }
 }
