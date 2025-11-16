@@ -7,6 +7,13 @@ interface MenuSelection {
   [key: string]: number;
 }
 
+interface ReviewScreenshotData {
+  name: string;
+  data: string;
+  mimeType: string;
+  size: number;
+}
+
 interface RequestBody {
   name: string;
   email: string;
@@ -15,6 +22,8 @@ interface RequestBody {
   pickupDate: string;
   pickupTime: string;
   message: string;
+  reviewBonus?: boolean;
+  reviewScreenshot?: ReviewScreenshotData;
 }
 
 export async function POST(req: NextRequest) {
@@ -23,6 +32,19 @@ export async function POST(req: NextRequest) {
     console.log('GAS_WEBAPP_URL:', GAS_WEBAPP_URL ? '設定済み' : '未設定');
     
     const body: RequestBody = await req.json();
+    
+    // レビューSS情報をログ出力
+    console.log('受信データ確認:', {
+      name: body.name,
+      email: body.email,
+      hasReviewScreenshot: !!body.reviewScreenshot,
+      reviewScreenshotInfo: body.reviewScreenshot ? {
+        name: body.reviewScreenshot.name,
+        mimeType: body.reviewScreenshot.mimeType,
+        size: body.reviewScreenshot.size,
+        dataLength: body.reviewScreenshot.data.length
+      } : null
+    });
     
     // バリデーション
     if (!body.name || !body.email || !body.phone) {
@@ -76,6 +98,8 @@ export async function POST(req: NextRequest) {
         ? `${body.pickupDate}T${body.pickupTime}` 
         : null,
       message: body.message || '',
+      reviewBonus: body.reviewBonus || false,
+      reviewScreenshot: body.reviewScreenshot || null,
       source: 'vercel', // Vercel経由であることを示すフラグ
       timestamp: new Date().toISOString(),
       userAgent: req.headers.get('user-agent') || '',
