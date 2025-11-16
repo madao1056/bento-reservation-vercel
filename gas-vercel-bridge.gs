@@ -51,7 +51,8 @@ function doPost(e) {
   try {
     console.log('=== Vercel Bridge: リクエスト受信 ===');
     console.log('Content Type:', e.postData?.type);
-    console.log('Raw Data:', e.postData?.contents);
+    console.log('Raw Data Length:', e.postData?.contents?.length || 0);
+    console.log('Raw Data Preview:', e.postData?.contents?.substring(0, 500) + '...');
     
     // JSONデータを解析
     let requestData;
@@ -62,7 +63,23 @@ function doPost(e) {
       return createErrorResponse('不正なJSONデータです', 400);
     }
     
-    console.log('解析済みデータ:', requestData);
+    console.log('解析済みデータ:', {
+      name: requestData.name,
+      email: requestData.email,
+      phone: requestData.phone,
+      menuItems: requestData.menuItems,
+      pickupDate: requestData.pickupDate,
+      pickupTime: requestData.pickupTime,
+      message: requestData.message,
+      reviewBonus: requestData.reviewBonus,
+      reviewScreenshot: requestData.reviewScreenshot ? {
+        hasData: !!requestData.reviewScreenshot.data,
+        name: requestData.reviewScreenshot.name,
+        mimeType: requestData.reviewScreenshot.mimeType,
+        size: requestData.reviewScreenshot.size,
+        dataLength: requestData.reviewScreenshot.data ? requestData.reviewScreenshot.data.length : 0
+      } : 'なし'
+    });
     
     // バリデーション
     const validation = validateFormData(requestData);

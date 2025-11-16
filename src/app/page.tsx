@@ -142,6 +142,12 @@ export default function BentoReservationForm() {
       // レビューSSファイルをBase64エンコード
       let reviewScreenshotData = null;
       if (formData.reviewScreenshot) {
+        console.log('🖼️ レビューSSファイル検出:', {
+          name: formData.reviewScreenshot.name,
+          type: formData.reviewScreenshot.type,
+          size: formData.reviewScreenshot.size
+        });
+        
         const base64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => resolve(e.target?.result as string);
@@ -154,12 +160,33 @@ export default function BentoReservationForm() {
           mimeType: formData.reviewScreenshot.type,
           size: formData.reviewScreenshot.size
         };
+        
+        console.log('✅ Base64変換完了:', {
+          name: reviewScreenshotData.name,
+          mimeType: reviewScreenshotData.mimeType,
+          size: reviewScreenshotData.size,
+          dataLength: reviewScreenshotData.data.length,
+          dataPreview: reviewScreenshotData.data.substring(0, 100) + '...'
+        });
+      } else {
+        console.log('ℹ️ レビューSSファイルなし');
       }
 
       const requestData = {
         ...formData,
         reviewScreenshot: reviewScreenshotData
       };
+      
+      console.log('📤 送信データ:', {
+        name: requestData.name,
+        email: requestData.email,
+        hasReviewScreenshot: !!requestData.reviewScreenshot,
+        reviewScreenshotInfo: requestData.reviewScreenshot ? {
+          name: requestData.reviewScreenshot.name,
+          mimeType: requestData.reviewScreenshot.mimeType,
+          dataLength: requestData.reviewScreenshot.data.length
+        } : null
+      });
       
       const res = await fetch('/api/submit-reservation', {
         method: 'POST',
