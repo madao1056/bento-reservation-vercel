@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // 元のシステムのメニューIDに変換
+    // 元のシステムのメニュー名に変換（完全一致）
     const convertedMenuItems: { [key: string]: number } = {};
     Object.entries(body.menuItems).forEach(([itemId, quantity]) => {
       const menuMap: { [key: string]: string } = {
@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
         'hamburg': '手ごねハンバーグ弁当',
         'tamago_sand': 'たまごサンドBOX'
       };
+      // メニュー名をそのまま使用（GAS側で正確に処理）
       const menuName = menuMap[itemId] || itemId;
       convertedMenuItems[menuName] = quantity;
     });
