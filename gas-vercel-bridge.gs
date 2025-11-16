@@ -1566,7 +1566,7 @@ function requestDrivePermissions() {
     console.log('✅ フォルダ作成権限が正常に動作しています');
     
     // テストフォルダを削除
-    DriveApp.removeFile(testFolder);
+    testFolder.setTrashed(true);
     console.log('✅ 権限テスト完了（テストフォルダ削除済み）');
     
     return {
