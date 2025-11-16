@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 惣菜屋レザン 弁当予約システム (Vercel版)
 
-## Getting Started
+Instagram iOS アプリ内ブラウザ問題を完全に回避する Vercel + GAS 構成の弁当予約システムです。
 
-First, run the development server:
+## 🎯 システム構成
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Instagram → Vercel (Next.js) → Vercel API → Google Apps Script → スプレッドシート
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+この構成により、Instagram アプリ内ブラウザの制限を完全に回避できます。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 セットアップ手順
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+詳しくは **SETUP-CHECKLIST.md** をご確認ください。
 
-## Learn More
+### 概要
+1. Google Apps Script の設定
+2. スプレッドシートの作成
+3. GAS のデプロイ
+4. Vercel の設定
+5. Vercel にデプロイ
+6. Instagram での利用
 
-To learn more about Next.js, take a look at the following resources:
+## 📱 Instagram 対応
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 解決した問題
+- ❌ Instagram iOS アプリ内ブラウザでの「undefined」表示
+- ❌ JavaScript制限によるフォーム送信不可
+- ❌ CORS エラー
+- ❌ GAS WebView 相性問題
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 対策
+- ✅ Vercel フロントエンドで安定表示
+- ✅ サーバーサイド API で GAS 呼び出し
+- ✅ Instagram 検知とログ記録
+- ✅ エラー時の電話案内
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Instagram経由でも安心してご利用いただける弁当予約システム**
