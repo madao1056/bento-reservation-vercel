@@ -1653,3 +1653,129 @@ function checkDriveFolderAccess() {
     };
   }
 }
+
+/**
+ * サンクスメール（お礼メール）のテスト送信
+ * 現在ログイン中のユーザーにテストメールを送信
+ */
+function testThankYouEmail() {
+  try {
+    console.log('=== サンクスメールテスト開始 ===');
+    
+    const userEmail = Session.getActiveUser().getEmail();
+    console.log('テスト送信先:', userEmail);
+    
+    // テスト用のフォームデータを作成
+    const testFormData = {
+      name: 'テスト太郎',
+      email: userEmail,
+      phone: '090-1234-5678',
+      menuItems: {
+        '唐揚げ弁当': 2,
+        '宮崎和牛カレー（極）': 1
+      },
+      pickupDate: '2025-11-20',
+      pickupTime: '12:00',
+      message: 'これはサンクスメールのテストです。よろしくお願いいたします。',
+      reviewBonus: false
+    };
+    
+    // テスト用予約データをスプレッドシートに一時保存（メール送信のため）
+    console.log('テストデータをスプレッドシートに保存...');
+    const saveResult = saveToSpreadsheet(testFormData);
+    
+    if (!saveResult.success) {
+      return {
+        success: false,
+        error: 'テストデータの保存に失敗しました: ' + saveResult.error,
+        message: 'スプレッドシート保存エラー'
+      };
+    }
+    
+    // サンクスメール送信をテスト
+    console.log('サンクスメール送信テスト実行...');
+    const result = sendThankYouEmail(testFormData);
+    
+    if (result && result.success === false) {
+      return {
+        success: false,
+        error: result.error,
+        message: 'サンクスメール送信に失敗しました'
+      };
+    }
+    
+    console.log('✅ サンクスメールテスト送信完了');
+    return {
+      success: true,
+      recipient: userEmail,
+      testData: {
+        name: testFormData.name,
+        menuItems: testFormData.menuItems,
+        pickupDateTime: `${testFormData.pickupDate} ${testFormData.pickupTime}`,
+        message: testFormData.message
+      },
+      message: 'サンクスメールのテスト送信が完了しました。メールボックスを確認してください。'
+    };
+    
+  } catch (error) {
+    console.error('❌ サンクスメールテストエラー:', error);
+    return {
+      success: false,
+      error: error.toString(),
+      message: 'テスト中にエラーが発生しました'
+    };
+  }
+}
+
+/**
+ * 特定のメールアドレスにサンクスメールテストを送信
+ * @param {string} testEmail - テスト送信先メールアドレス
+ */
+function sendTestThankYouTo(testEmail) {
+  try {
+    if (!testEmail) {
+      return {
+        success: false,
+        error: 'メールアドレスが指定されていません'
+      };
+    }
+    
+    console.log('=== 指定アドレスへのサンクスメールテスト ===');
+    console.log('送信先:', testEmail);
+    
+    const testFormData = {
+      name: 'サンプル顧客',
+      email: testEmail,
+      phone: '080-9999-8888',
+      menuItems: {
+        'ポークとんかつ弁当': 1,
+        'えびふらい弁当': 1,
+        'のり弁': 2
+      },
+      pickupDate: '2025-11-21',
+      pickupTime: '13:00',
+      message: 'サンクスメールの内容確認用テストです。実際のお弁当注文ではありません。',
+      reviewBonus: false
+    };
+    
+    // サンクスメール送信
+    const result = sendThankYouEmail(testFormData);
+    
+    console.log('送信結果:', result);
+    
+    return {
+      success: true,
+      recipient: testEmail,
+      testData: testFormData,
+      message: `${testEmail} にサンクスメールテストを送信しました`
+    };
+    
+  } catch (error) {
+    console.error('指定アドレステストエラー:', error);
+    return {
+      success: false,
+      error: error.toString(),
+      message: 'テスト送信中にエラーが発生しました'
+    };
+  }
+}
