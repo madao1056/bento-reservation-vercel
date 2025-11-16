@@ -3,6 +3,17 @@
  * 弁当予約システム Vercel Bridge
  */
 
+/**
+ * OAuth スコープの設定
+ * @OnlyCurrentDoc
+ */
+
+// 必要な権限を明示的に要求
+// @scope https://www.googleapis.com/auth/script.scriptapp
+// @scope https://www.googleapis.com/auth/spreadsheets
+// @scope https://www.googleapis.com/auth/gmail.send
+// @scope https://www.googleapis.com/auth/drive.file
+
 // 設定: 管理者のメールアドレス（ここを変更してください）
 const ADMIN_EMAIL = 'yoshihiroinokuchi876@gmail.com'; // お弁当屋さんのメールアドレスを設定
 const SHOP_NAME = '惣菜屋レザン'; // お店の名前を設定
@@ -153,8 +164,15 @@ function saveToSpreadsheet(data) {
     
     // レビュースクリーンショットの処理
     let reviewScreenshotUrl = 'なし';
+    console.log('レビューSS確認:', data.reviewScreenshot ? 'あり' : 'なし');
+    if (data.reviewScreenshot) {
+      console.log('レビューSSデータ詳細:', JSON.stringify(data.reviewScreenshot, null, 2));
+    }
+    
     if (data.reviewScreenshot && data.reviewScreenshot.data) {
+      console.log('レビューSS保存開始');
       reviewScreenshotUrl = saveReviewScreenshot(data.reviewScreenshot, data.email);
+      console.log('レビューSS保存結果:', reviewScreenshotUrl);
     }
     
     // データ行を追加（元システムのヘッダー順序に合わせる）
@@ -188,16 +206,16 @@ function saveToSpreadsheet(data) {
  * メニューアイテムを文字列にフォーマット（元システムと同じ表示形式）
  */
 function formatMenuItems(menuItems) {
-  // 元システムのメニュー名と価格設定
+  // 正しい価格設定
   const menuData = {
     '唐揚げ弁当': 800,
     '宮崎和牛カレー（極）': 850,
     'チキン南蛮弁当': 800,
-    '宮崎ポークのとんかつ弁当': 830,
-    '大えびふらい弁当': 880,
-    'レザン風のり弁': 780,
-    '手ごねハンバーグ弁当': 820,
-    'たまごサンドBOX': 580
+    '宮崎ポークのとんかつ弁当': 850,  // 830 → 850 に修正
+    '大えびふらい弁当': 800,           // 880 → 800 に修正
+    'レザン風のり弁': 750,             // 780 → 750 に修正
+    '手ごねハンバーグ弁当': 880,       // 820 → 880 に修正
+    'たまごサンドBOX': 700              // 580 → 700 に修正
   };
   
   const items = [];
@@ -223,19 +241,19 @@ function formatMenuItems(menuItems) {
 }
 
 /**
- * 合計金額を計算（元システムと同じ価格設定）
+ * 合計金額を計算（正しい価格設定）
  */
 function calculateTotalAmount(menuItems) {
-  // 元システムの価格設定と一致させる
+  // 正しい価格設定に修正
   const prices = {
     '唐揚げ弁当': 800,
     '宮崎和牛カレー（極）': 850,
     'チキン南蛮弁当': 800,
-    '宮崎ポークのとんかつ弁当': 830,
-    '大えびふらい弁当': 880,
-    'レザン風のり弁': 780,
-    '手ごねハンバーグ弁当': 820,
-    'たまごサンドBOX': 580
+    '宮崎ポークのとんかつ弁当': 850,  // 830 → 850 に修正
+    '大えびふらい弁当': 800,           // 880 → 800 に修正
+    'レザン風のり弁': 750,             // 780 → 750 に修正
+    '手ごねハンバーグ弁当': 880,
+    'たまごサンドBOX': 700              // 580 → 700 に修正
   };
   
   let total = 0;
@@ -417,49 +435,142 @@ ${SHOP_NAME}
 }
 
 /**
- * お店への通知メール
+ * お店への通知メール（元システムと同じフォーマット）
  */
 function sendShopNotification(data, rowNumber) {
-  const subject = `【新規予約】${data.name}様からのご予約 (R${String(rowNumber).padStart(4, '0')})`;
+  // 管理者メールアドレスが設定されていない場合はスキップ
+  if (!ADMIN_EMAIL || ADMIN_EMAIL === 'admin@example.com') {
+    console.log('管理者メールアドレスが設定されていないため、通知メールをスキップします');
+    return;
+  }
   
-  const menuString = formatMenuItems(data.menuItems);
-  const totalAmount = calculateTotalAmount(data.menuItems);
+  const formattedDate = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy年MM月dd日 HH:mm:ss');
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
   
-  const body = `
-新しいお弁当のご予約が入りました。
-Vercel経由での予約です。
+  const hasMenu = data.menuItems && Object.keys(data.menuItems).length > 0;
+  const orderType = hasMenu ? '【予約】' : '【お問い合わせ】';
+  const subject = `${orderType} ${data.name} 様より${hasMenu ? 'ご予約' : 'お問い合わせ'}がありました`;
+  
+  const menuInfo = hasMenu ? `
+            <tr style="background-color: #fff3cd;">
+              <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; font-weight: bold; width: 30%;">ご注文内容</td>
+              <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; font-size: 16px; font-weight: bold; white-space: pre-line;">${formatMenuItems(data.menuItems)}</td>
+            </tr>` : '';
+  
+  const pickupInfoShop = data.pickupDateTime && data.pickupDateTime !== 'null' ? `
+            <tr style="background-color: #e3f2fd;">
+              <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; font-weight: bold; width: 30%;">受け取り日時</td>
+              <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; font-size: 16px; font-weight: bold;">${formatPickupDateTime(data.pickupDateTime)}</td>
+            </tr>` : '';
+  
+  const htmlBody = `
+    <div style="font-family: 'Helvetica Neue', Arial, 'Hiragino Sans', sans-serif; max-width: 700px; margin: 0 auto;">
+      <div style="background-color: #28a745; color: white; padding: 20px; text-align: center;">
+        <h1 style="margin: 0; font-size: 24px;">新規${hasMenu ? 'ご予約' : 'お問い合わせ'}通知</h1>
+      </div>
+      
+      <div style="padding: 15px 10px; background-color: #f8f9fa;">
+        <div style="background-color: #d1f2eb; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #28a745;">
+          <p style="margin: 0; color: #155724; font-size: 16px; font-weight: bold;">
+            新しい${hasMenu ? 'ご予約' : 'お問い合わせ'}が届きました
+          </p>
+        </div>
+        
+        <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h3 style="color: #333; margin-top: 0;">お客様情報</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold; width: 30%;">お名前</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 16px;">${data.name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold;">メールアドレス</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">
+                <a href="mailto:${data.email}" style="color: #007bff;">${data.email}</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold;">お電話番号</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 16px;">
+                <a href="tel:${data.phone}" style="color: #007bff; text-decoration: none;">${data.phone}</a>
+              </td>
+            </tr>
+            ${menuInfo}
+            ${pickupInfoShop}
+            <tr>
+              <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: bold; vertical-align: top;">備考欄</td>
+              <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; white-space: pre-wrap; background-color: #f8f9fa;">${data.message || 'なし'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; font-weight: bold;">受付日時</td>
+              <td style="padding: 10px;">${formattedDate}</td>
+            </tr>
+          </table>
+        </div>
+        
+        ${data.message && data.message.includes('会議') ? `
+        <div style="background-color: #ffeaa7; padding: 12px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #fdcb6e;">
+          <p style="margin: 0; color: #6c5ce7; font-weight: bold;">
+            会議用弁当の可能性があります
+          </p>
+          <p style="margin: 5px 0; color: #6c5ce7; font-size: 14px;">
+            お客様のメッセージをご確認の上、個数・日時等を確認してください。
+          </p>
+        </div>
+        ` : ''}
+        
+        <div style="background-color: #e3f2fd; padding: 12px; border-radius: 8px; margin: 15px 0;">
+          <h4 style="margin: 0 0 10px 0; color: #1976d2;">ご確認事項</h4>
+          <ul style="margin: 5px 0; padding-left: 20px; color: #424242;">
+            ${hasMenu ? '<li>ご予約内容の確認と準備をお願いします</li>' : '<li>お問い合わせ内容をご確認ください</li>'}
+            ${hasMenu ? '<li>受取日時・個数等の詳細確認</li>' : ''}
+            <li>お客様へは既に自動返信メールを送信済みです</li>
+          </ul>
+        </div>
+        
+        <p style="font-size: 14px; color: #666;">
+          詳細はスプレッドシートでもご確認いただけます：<br>
+          <a href="${spreadsheet.getUrl()}" target="_blank" style="color: #007bff; text-decoration: none;">
+${SHOP_NAME}_お弁当予約データ を開く
+          </a>
+        </p>
+      </div>
+    </div>
+  `;
+  
+  const textBody = `
+${orderType} 新しい${hasMenu ? 'ご予約' : 'お問い合わせ'}が届きました。
 
-■ お客様情報
+【お客様情報】
 お名前: ${data.name}
 メールアドレス: ${data.email}
 お電話番号: ${data.phone}
-
-■ ご注文内容
-${menuString}
-合計金額: ${totalAmount.toLocaleString()}円
-
-■ 受け取り希望
-${data.pickupDateTime && data.pickupDateTime !== 'null' 
-  ? formatPickupDateTime(data.pickupDateTime) 
-  : '要相談'}
-
-■ ご要望・備考
+${hasMenu ? 'ご注文内容: ' + formatMenuItems(data.menuItems) + '\n' : ''}${data.pickupDateTime && data.pickupDateTime !== 'null' ? '受け取り日時: ' + formatPickupDateTime(data.pickupDateTime) + '\n' : ''}
+備考欄:
 ${data.message || 'なし'}
 
-■ システム情報
-予約番号: R${String(rowNumber).padStart(4, '0')}
-受信日時: ${Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy年MM月dd日 HH:mm:ss')}
-ソース: Vercel (Instagram対応)
-UserAgent: ${data.userAgent || '不明'}
+受付日時: ${formattedDate}
 
-━━━━━━━━━━━━━━━━━━
-速やかにお客様にご連絡をお願いします。
-スプレッドシート: ${SpreadsheetApp.openById(SPREADSHEET_ID).getUrl()}
-━━━━━━━━━━━━━━━━━━
-`;
+${data.message && data.message.includes('会議') ? '※会議用弁当の可能性があります。個数・日時等をご確認ください。\n' : ''}
 
-  GmailApp.sendEmail(ADMIN_EMAIL, subject, body);
-  console.log('店舗への通知メール送信完了:', ADMIN_EMAIL);
+【ご確認事項】
+${hasMenu ? '・ご予約内容の確認と準備をお願いします\n・受取日時・個数等の詳細確認' : '・お問い合わせ内容をご確認ください'}
+・お客様へは既に自動返信メールを送信済みです
+
+詳細はスプレッドシートでもご確認いただけます：
+${spreadsheet.getUrl()}
+
+${SHOP_NAME}_お弁当予約データ を開く
+  `;
+  
+  // メール送信
+  GmailApp.sendEmail(ADMIN_EMAIL, subject, textBody, {
+    htmlBody: htmlBody,
+    name: SHOP_NAME + ' 予約システム'
+    // replyTo設定を削除（管理者向け通知はreplyToを設定しない）
+  });
+  
+  console.log('お店への通知メール送信完了:', ADMIN_EMAIL);
 }
 
 /**
@@ -711,7 +822,11 @@ function checkSpreadsheetSheets() {
  */
 function scheduleThankYouEmail(formData) {
   try {
-    if (!formData.pickupDateTime || formData.pickupDateTime === 'なし') {
+    console.log('=== お礼メールスケジューリング開始 ===');
+    console.log('pickupDateTime:', formData.pickupDateTime);
+    console.log('email:', formData.email);
+    
+    if (!formData.pickupDateTime || formData.pickupDateTime === 'なし' || formData.pickupDateTime === 'null' || formData.pickupDateTime === null) {
       console.log('受け取り日時が設定されていないため、お礼メールのスケジュールをスキップします');
       return;
     }
@@ -725,6 +840,12 @@ function scheduleThankYouEmail(formData) {
     // 今回の予約でレビューSS添付がある場合もスキップ
     if (formData.reviewScreenshot && formData.reviewScreenshot.data) {
       console.log(`${formData.email} は今回レビューSS添付済みのため、お礼メールをスキップします`);
+      return;
+    }
+
+    // 同日の重複受け取りチェック
+    if (hasSameDayDeliveryScheduled(formData.email, formData.pickupDateTime)) {
+      console.log(`${formData.email} は同日に既にお礼メールがスケジュール済みのため、お礼メールをスキップします`);
       return;
     }
 
@@ -747,14 +868,110 @@ function scheduleThankYouEmail(formData) {
       .at(thankYouDate);
     
     const trigger = triggerBuilder.create();
+    const triggerId = trigger.getUniqueId();
+    
+    console.log('作成されたトリガーID:', triggerId);
     
     // トリガー情報をスプレッドシートに保存
-    saveTriggerInfo(trigger.getUniqueId(), formData, thankYouDate);
+    if (triggerId) {
+      saveTriggerInfo(triggerId, formData, thankYouDate);
+    } else {
+      console.error('トリガーIDが取得できませんでした');
+      // トリガーIDがなくても記録は残す
+      saveTriggerInfo('ERROR_NO_ID_' + Date.now(), formData, thankYouDate);
+    }
     
     console.log(`レビュー未投稿の ${formData.email} にお礼メールのトリガーを設定しました: ${thankYouDate}`);
     
   } catch (error) {
     console.error('お礼メールトリガー設定エラー:', error);
+  }
+}
+
+/**
+ * 同日に既にお礼メールがスケジュールされているかチェック
+ * @param {string} email - チェックするメールアドレス  
+ * @param {string} pickupDateTime - 受け取り日時
+ * @returns {boolean} 同日に既にスケジュール済みの場合true
+ */
+function hasSameDayDeliveryScheduled(email, pickupDateTime) {
+  try {
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const triggerSheet = spreadsheet.getSheetByName('お礼メールトリガー');
+    
+    if (!triggerSheet) {
+      return false;
+    }
+    
+    const lastRow = triggerSheet.getLastRow();
+    if (lastRow <= 1) {
+      return false;
+    }
+    
+    // 指定された受け取り日を取得
+    const targetDate = new Date(pickupDateTime);
+    const targetDateString = Utilities.formatDate(targetDate, 'Asia/Tokyo', 'yyyy-MM-dd');
+    
+    console.log(`同日チェック: ${email} の ${targetDateString} をチェック中`);
+    
+    // ヘッダー行を取得して列の位置を特定
+    const headers = triggerSheet.getRange(1, 1, 1, triggerSheet.getLastColumn()).getValues()[0];
+    const emailColumnIndex = headers.indexOf('メールアドレス') + 1;
+    const pickupColumnIndex = headers.indexOf('受け取り日時') + 1;
+    const statusColumnIndex = headers.indexOf('送信ステータス') + 1;
+    
+    if (emailColumnIndex === 0 || pickupColumnIndex === 0) {
+      console.log('お礼メールトリガーシートの列が見つかりません');
+      return false;
+    }
+    
+    // データ範囲を取得
+    const emailData = triggerSheet.getRange(2, emailColumnIndex, lastRow - 1, 1).getValues();
+    const pickupData = triggerSheet.getRange(2, pickupColumnIndex, lastRow - 1, 1).getValues();
+    const statusData = statusColumnIndex > 0 ? triggerSheet.getRange(2, statusColumnIndex, lastRow - 1, 1).getValues() : null;
+    
+    // 同じメールアドレス & 同日の予約をチェック
+    for (let i = 0; i < emailData.length; i++) {
+      if (emailData[i][0] === email) {
+        const existingPickupStr = pickupData[i][0];
+        const status = statusData ? statusData[i][0] : '予約済み';
+        
+        // 送信済みまたはエラーの場合はスキップ（重複チェック対象外）
+        if (status === '送信完了' || status === '期限切れ削除') {
+          continue;
+        }
+        
+        // 既存の受け取り日時を解析
+        let existingDateString = '';
+        if (typeof existingPickupStr === 'string') {
+          // 文字列の場合（例: "2025年11月15日(金) 13:00"）
+          const dateMatch = existingPickupStr.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+          if (dateMatch) {
+            const year = dateMatch[1];
+            const month = dateMatch[2].padStart(2, '0');
+            const day = dateMatch[3].padStart(2, '0');
+            existingDateString = `${year}-${month}-${day}`;
+          }
+        } else if (existingPickupStr instanceof Date) {
+          // Date オブジェクトの場合
+          existingDateString = Utilities.formatDate(existingPickupStr, 'Asia/Tokyo', 'yyyy-MM-dd');
+        }
+        
+        console.log(`既存予約確認: ${existingPickupStr} -> ${existingDateString}, ステータス: ${status}`);
+        
+        if (existingDateString === targetDateString) {
+          console.log(`${email} の同日予約を発見: ${existingDateString}`);
+          return true;
+        }
+      }
+    }
+    
+    console.log(`${email} の ${targetDateString} は初回予約です`);
+    return false;
+    
+  } catch (error) {
+    console.error('同日配送チェックエラー:', error);
+    return false;
   }
 }
 
@@ -815,10 +1032,27 @@ function hasReviewHistoryForEmail(email) {
  */
 function saveTriggerInfo(triggerId, formData, scheduledTime) {
   try {
+    // 基本的なバリデーション
+    if (!triggerId) {
+      console.error('トリガーIDが未定義です');
+      triggerId = 'UNDEFINED_' + Date.now();
+    }
+    
+    if (!formData || !formData.email || !formData.name) {
+      console.error('フォームデータが不正です:', formData);
+      return;
+    }
+    
+    if (!scheduledTime) {
+      console.error('スケジュール時間が未定義です');
+      return;
+    }
+    
     const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
     let triggerSheet = spreadsheet.getSheetByName('お礼メールトリガー');
     
     if (!triggerSheet) {
+      console.log('お礼メールトリガーシートが存在しないため、新規作成します');
       // トリガー管理用シートを作成
       triggerSheet = spreadsheet.insertSheet('お礼メールトリガー');
       
@@ -832,23 +1066,44 @@ function saveTriggerInfo(triggerId, formData, scheduledTime) {
       headerRange.setFontColor('white');
       headerRange.setFontWeight('bold');
       headerRange.setHorizontalAlignment('center');
+      
+      console.log('お礼メールトリガーシートを作成しました');
+    } else {
+      console.log('既存のお礼メールトリガーシートを使用します');
     }
+    
+    // 受け取り日時のフォーマット
+    const formattedPickupDateTime = formatPickupDateTime(formData.pickupDateTime);
+    console.log('フォーマット済み受け取り日時:', formattedPickupDateTime);
+    
+    // スケジュール時間のフォーマット  
+    const formattedScheduledTime = Utilities.formatDate(scheduledTime, 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
+    console.log('フォーマット済みスケジュール時間:', formattedScheduledTime);
+    
+    // 現在時刻のフォーマット
+    const formattedCurrentTime = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
+    console.log('フォーマット済み現在時刻:', formattedCurrentTime);
     
     // トリガー情報を追加
     const rowData = [
       triggerId,
       formData.name,
       formData.email,
-      formatPickupDateTime(formData.pickupDateTime),
-      Utilities.formatDate(scheduledTime, 'Asia/Tokyo', 'yyyy/MM/dd HH:mm'),
+      formattedPickupDateTime,
+      formattedScheduledTime,
       '予約済み',
-      Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm')
+      formattedCurrentTime
     ];
     
+    console.log('挿入するデータ:', rowData);
+    
     triggerSheet.appendRow(rowData);
+    console.log('トリガー情報保存完了');
     
   } catch (error) {
     console.error('トリガー情報保存エラー:', error);
+    console.error('エラースタック:', error.stack);
+    // エラーが発生してもシステム全体を止めない
   }
 }
 
@@ -1108,6 +1363,57 @@ ${SHOP_NAME}
   });
   
   console.log('お礼メール送信完了:', triggerInfo.email);
+}
+
+/**
+ * 手動でプロジェクトトリガーを設定する関数（管理者用）
+ * この関数をGASエディタから直接実行してトリガーを設定
+ */
+function setupManualTriggers() {
+  // 毎日午前3時に期限切れトリガーをクリーンアップ
+  ScriptApp.newTrigger('dailyCleanupTriggers')
+    .timeBased()
+    .everyDays(1)
+    .atHour(3)
+    .create();
+  
+  console.log('手動トリガー設定完了');
+  return 'トリガー設定完了';
+}
+
+/**
+ * お礼メールトリガーのテスト関数
+ * @param {string} email - テスト用メールアドレス
+ * @param {string} pickupDateTime - テスト用受け取り日時
+ */
+function testThankYouEmailTrigger(email = 'test@example.com', pickupDateTime = '2025-11-20T12:00') {
+  console.log('=== お礼メールトリガーテスト開始 ===');
+  
+  const testData = {
+    name: 'テスト太郎',
+    email: email,
+    phone: '090-1234-5678',
+    menuItems: {'唐揚げ弁当': 1},
+    pickupDateTime: pickupDateTime,
+    message: 'テスト予約です'
+  };
+  
+  console.log('テストデータ:', testData);
+  
+  try {
+    scheduleThankYouEmail(testData);
+    console.log('テスト完了');
+    return {
+      success: true,
+      message: 'テスト実行完了。ログを確認してください。'
+    };
+  } catch (error) {
+    console.error('テストエラー:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 }
 
 /**

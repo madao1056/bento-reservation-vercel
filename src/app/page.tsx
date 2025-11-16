@@ -139,12 +139,34 @@ export default function BentoReservationForm() {
         throw new Error('ご指定の日は定休日です。別の日付をお選びください。');
       }
 
+      // レビューSSファイルをBase64エンコード
+      let reviewScreenshotData = null;
+      if (formData.reviewScreenshot) {
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.readAsDataURL(formData.reviewScreenshot!);
+        });
+        
+        reviewScreenshotData = {
+          name: formData.reviewScreenshot.name,
+          data: base64,
+          mimeType: formData.reviewScreenshot.type,
+          size: formData.reviewScreenshot.size
+        };
+      }
+
+      const requestData = {
+        ...formData,
+        reviewScreenshot: reviewScreenshotData
+      };
+      
       const res = await fetch('/api/submit-reservation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestData),
       });
 
       if (!res.ok) {
