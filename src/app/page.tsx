@@ -382,7 +382,8 @@ export default function BentoReservationForm() {
                 color: '#2c3e50',
                 marginTop: 0,
                 marginBottom: '15px',
-                fontSize: '18px'
+                fontSize: '18px',
+                fontWeight: 'bold'
               }}>お弁当のご予約</h3>
               <p style={{
                 color: '#6c757d',
@@ -463,7 +464,7 @@ export default function BentoReservationForm() {
 
               {/* 受け取り日時 */}
               <div style={{ marginBottom: '24px', marginTop: '20px' }}>
-                <label style={labelStyle}>
+                <label style={{...labelStyle, fontWeight: 'bold'}}>
                   受け取り日付<span style={{ color: '#e74c3c' }}>*</span>
                 </label>
                 <input
@@ -520,7 +521,7 @@ export default function BentoReservationForm() {
               </div>
 
               <div style={{ marginBottom: '24px' }}>
-                <label style={labelStyle}>
+                <label style={{...labelStyle, fontWeight: 'bold'}}>
                   受け取り時間<span style={{ color: '#e74c3c' }}>*</span>
                 </label>
                 <select
@@ -564,7 +565,8 @@ export default function BentoReservationForm() {
               }}>
                 <h4 style={{
                   margin: '0 0 8px 0',
-                  fontSize: '18px'
+                  fontSize: '18px',
+                  fontWeight: 'bold'
                 }}>ご利用いただいているお客様へ</h4>
                 <p style={{
                   margin: 0,
