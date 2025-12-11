@@ -759,7 +759,8 @@ export default function BentoReservationForm() {
               marginTop: '20px',
               border: '1px solid #c3e6cb'
             }}>
-              ご予約・お問い合わせありがとうございます。
+              ご予約・お問い合わせありがとうございます。<br/>
+              現在、注文確認中です。 確定後に改めてご連絡のメールが入ります。
             </div>
           )}
 
