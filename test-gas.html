@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>GAS API テスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>GAS API 動作確認</h1>
+    
+    <h2>1. 定休日情報取得（GET）</h2>
+    <button onclick="testGetHoliday()">定休日情報を取得</button>
+    <div id="holiday-result"></div>
+    
+    <h2>2. 予約送信テスト（POST）</h2>
+    <button onclick="testPostReservation()">テスト予約を送信</button>
+    <div id="reservation-result"></div>
+
+    <script>
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwBBjHDcPowXyBqXPgn6UMVKMw0cEUMcZnZIdjzwnbCWdy6vYft9iDTS61lNrSBo7K_jQ/exec';
+        
+        async function testGetHoliday() {
+            const resultDiv = document.getElementById('holiday-result');
+            resultDiv.innerHTML = '<p>取得中...</p>';
+            
+            try {
+                const response = await fetch(GAS_URL + '?action=getHolidayInfo');
+                const data = await response.json();
+                resultDiv.innerHTML = `
+                    <p class="success">✅ 成功</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ エラー: ${error.message}</p>
+                `;
+            }
+        }
+        
+        async function testPostReservation() {
+            const resultDiv = document.getElementById('reservation-result');
+            resultDiv.innerHTML = '<p>送信中...</p>';
+            
+            const testData = {
+                name: "テスト太郎",
+                email: "test@example.com",
+                phone: "090-1234-5678",
+                menuItems: {
+                    "唐揚げ弁当": 1
+                },
+                pickupDateTime: "2025-12-15T12:00",
+                message: "これはテストです",
+                reviewBonus: false,
+                source: "test",
+                timestamp: new Date().toISOString()
+            };
+            
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                resultDiv.innerHTML = `
+                    <p class="${data.success ? 'success' : 'error'}">
+                        ${data.success ? '✅ 成功' : '❌ エラー'}
+                    </p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ エラー: ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
